@@ -1,0 +1,63 @@
+================================================================================
+                        VERITAS SYSTEM ARCHITECTURE v2.0
+================================================================================
+
+[ USER (React UI) ]
+      |
+      |  (HTTP JSON)
+      v
+[ GATEWAY (Node.js) ]  <-- "The Bouncer" (Proxies requests, hides Python)
+      |
+      |  (Internal Docker Network)
+      v
++------------------------------------------------------------------------------+
+|                          AI ENGINE (Python/FastAPI)                          |
+|                                                                              |
+|  +--- FLOW A: INGESTION (Learning) ---------------------------------------+  |
+|  |                                                                        |  |
+|  |  https://www.merriam-webster.com/dictionary/input -> [WebLoader] -> [REGEX CLEANER] -> [Text Splitter]      |  |
+|  |                                      |                   |             |  |
+|  |                               (Removes [1], [edit])   (1000/200 chars) |  |
+|  |                                      |                   |             |  |
+|  |        +-----------------------------+                   v             |  |
+|  |        |                                         [Embeddings Model]    |  |
+|  |        v                                         (HuggingFace Local)   |  |
+|  |  [BM25 Index]                                            |             |  |
+|  |  (In-Memory Keyword Map)                             [ChromaDB]        |  |
+|  |                                                   (Vector Database)    |  |
+|  +------------------------------------------------------------------------+  |
+|                                                                              |
+|                                                                              |
+|  +--- FLOW B: INFERENCE (Answering) --------------------------------------+  |
+|  |                                                                        |  |
+|  |  1. [User Query] + [Chat History]                                      |  |
+|  |           |                                                            |  |
+|  |           v                                                            |  |
+|  |     [QUERY REWRITER] <----(Calls)----> [Gemini Pro API]                |  |
+|  |     (Resolves "it", "she", "he")                                       |  |
+|  |           |                                                            |  |
+|  |           v                                                            |  |
+|  |    (Standalone Query)                                                  |  |
+|  |           |                                                            |  |
+|  |           +------------+------------------------+                      |  |
+|  |                        |                        |                      |  |
+|  |                 [Vector Search]           [BM25 Search]                |  |
+|  |                 (Semantic Understanding)  (Exact Keyword Match)        |  |
+|  |                        |                        |                      |  |
+|  |                        +-----------+------------+                      |  |
+|  |                                    |                                   |  |
+|  |                           [ENSEMBLE MERGE]                             |  |
+|  |                           (Weighted 50/50)                             |  |
+|  |                                    |                                   |  |
+|  |                                    v                                   |  |
+|  |                              [Top K Docs]                              |  |
+|  |                                    |                                   |  |
+|  |                                    v                                   |  |
+|  |  [GENERATOR PROMPT] <----(Calls)----> [Gemini Pro API]                 |  |
+|  |  (Persona: "Tech Architect")       (Synthesizes Answer)                |  |
+|  |           |                                                            |  |
+|  |           v                                                            |  |
+|  |      [FINAL ANSWER]                                                    |  |
+|  +------------------------------------------------------------------------+  |
+|                                                                              |
++------------------------------------------------------------------------------+

@@ -1,0 +1,83 @@
+/* client/src/styles/global.css */
+:root {
+  --bg-dark: #050505;       /* Pure Black */
+  --bg-panel: #0a0a0a;      /* Almost Black */
+  --bg-card: #111111;       /* Dark Gray */
+  
+  --accent-primary: #6366f1; /* Indigo Neon */
+  --accent-glow: rgba(99, 102, 241, 0.15);
+  
+  --text-main: #ededed;
+  --text-muted: #888888;
+  
+  --border-color: #222222;
+  --glass: rgba(255, 255, 255, 0.03);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  font-family: 'Inter', sans-serif; /* Make sure to import Inter in index.html if possible */
+  overflow: hidden; /* No browser scrollbars */
+}
+
+/* SCROLLBARS */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-dark); }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #555; }
+
+/* LAYOUT GRID - FORCES FULL WIDTH */
+.app-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr 320px; /* Sidebar | Chat | Inspector */
+  grid-template-rows: 100vh;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* UTILITIES */
+.glass-panel {
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+}
+
+.glow-btn {
+  background: linear-gradient(135deg, var(--accent-primary), #4f46e5);
+  border: none;
+  color: white;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 15px var(--accent-glow);
+}
+
+.glow-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 25px var(--accent-glow);
+}
+
+.glow-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+input, textarea {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: white;
+  border-radius: 6px;
+  outline: none;
+  transition: border 0.2s;
+}
+
+input:focus, textarea:focus {
+  border-color: var(--accent-primary);
+}

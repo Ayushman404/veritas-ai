@@ -1,63 +1,77 @@
 ================================================================================
-                        VERITAS SYSTEM ARCHITECTURE v2.0
+                    VERITAS SYSTEM ARCHITECTURE v3.0
+               (Hybrid RAG + Multi-Modal Ingestion)
 ================================================================================
 
 [ USER (React UI) ]
       |
-      |  (HTTP JSON)
-      v
-[ GATEWAY (Node.js) ]  <-- "The Bouncer" (Proxies requests, hides Python)
-      |
-      |  (Internal Docker Network)
+      |  (Direct HTTP / CORS Enabled)
       v
 +------------------------------------------------------------------------------+
-|                          AI ENGINE (Python/FastAPI)                          |
+|                           AI ENGINE (Python/FastAPI)                         |
 |                                                                              |
-|  +--- FLOW A: INGESTION (Learning) ---------------------------------------+  |
+|  +--- FLOW A: MULTI-MODAL INGESTION (The Learning Phase) -----------------+  |
 |  |                                                                        |  |
-|  |  https://www.merriam-webster.com/dictionary/input -> [WebLoader] -> [REGEX CLEANER] -> [Text Splitter]      |  |
-|  |                                      |                   |             |  |
-|  |                               (Removes [1], [edit])   (1000/200 chars) |  |
-|  |                                      |                   |             |  |
-|  |        +-----------------------------+                   v             |  |
-|  |        |                                         [Embeddings Model]    |  |
-|  |        v                                         (HuggingFace Local)   |  |
-|  |  [BM25 Index]                                            |             |  |
-|  |  (In-Memory Keyword Map)                             [ChromaDB]        |  |
-|  |                                                   (Vector Database)    |  |
+|  |   [Source A: PDF Files]            [Source B: Web URLs]                |  |
+|  |   (Research Papers/Docs)           (News/Wikipedia)                    |  |
+|  |             |                                |                         |  |
+|  |             v                                v                         |  |
+|  |      [PyPDFLoader]                    [WebBaseLoader]                  |  |
+|  |             |                                |                         |  |
+|  |             +------------+-------------------+                         |  |
+|  |                          |                                             |  |
+|  |                          v                                             |  |
+|  |                  [TEXT CLEANER]                                        |  |
+|  |    (Removes citations [1], extra whitespace, headers)                  |  |
+|  |                          |                                             |  |
+|  |                          v                                             |  |
+|  |           [RecursiveCharacterTextSplitter]                             |  |
+|  |       (Chunk Size: 1000 | Overlap: 200 tokens)                         |  |
+|  |                          |                                             |  |
+|  |                          v                                             |  |
+|  |               [EMBEDDING MODEL]                                        |  |
+|  |   (HuggingFace: all-MiniLM-L6-v2 / Google Embeddings)                  |  |
+|  |                          |                                             |  |
+|  |           +--------------+---------------+                             |  |
+|  |           |                              |                             |  |
+|  |           v                              v                             |  |
+|  |    [BM25 Index]                     [ChromaDB]                         |  |
+|  | (Sparse / Keyword Map)        (Dense / Vector Store)                   |  |
+|  |   "Exact Matches"                "Semantic Concepts"                   |  |
 |  +------------------------------------------------------------------------+  |
 |                                                                              |
 |                                                                              |
-|  +--- FLOW B: INFERENCE (Answering) --------------------------------------+  |
+|  +--- FLOW B: INFERENCE PIPELINE (The Thinking Phase) --------------------+  |
 |  |                                                                        |  |
-|  |  1. [User Query] + [Chat History]                                      |  |
-|  |           |                                                            |  |
-|  |           v                                                            |  |
-|  |     [QUERY REWRITER] <----(Calls)----> [Gemini Pro API]                |  |
-|  |     (Resolves "it", "she", "he")                                       |  |
-|  |           |                                                            |  |
-|  |           v                                                            |  |
-|  |    (Standalone Query)                                                  |  |
-|  |           |                                                            |  |
-|  |           +------------+------------------------+                      |  |
-|  |                        |                        |                      |  |
-|  |                 [Vector Search]           [BM25 Search]                |  |
-|  |                 (Semantic Understanding)  (Exact Keyword Match)        |  |
-|  |                        |                        |                      |  |
-|  |                        +-----------+------------+                      |  |
+|  |  1. [User Query]                                                       |  |
+|  |          |                                                             |  |
+|  |          v                                                             |  |
+|  |  [QUERY REWRITER (Gemini 2.5 Flash)]                                   |  |
+|  |  "What is the price?" -> "What is the price of Apple stock?"           |  |
+|  |          |                                                             |  |
+|  |          +-------------+-----------------------+                       |  |
+|  |                        |                       |                       |  |
+|  |                        v                       v                       |  |
+|  |                  [Vector Search]         [BM25 Search]                 |  |
+|  |                  (Finds Context)        (Finds Keywords)               |  |
+|  |                        |                       |                       |  |
+|  |                        +-----------+-----------+                       |  |
 |  |                                    |                                   |  |
-|  |                           [ENSEMBLE MERGE]                             |  |
-|  |                           (Weighted 50/50)                             |  |
+|  |                            [ENSEMBLE MERGE]                            |  |
+|  |                     (Deduplicate & Weight 50/50)                       |  |
 |  |                                    |                                   |  |
 |  |                                    v                                   |  |
-|  |                              [Top K Docs]                              |  |
+|  |                          [TOP K DOCUMENT CHUNKS]                       |  |
 |  |                                    |                                   |  |
 |  |                                    v                                   |  |
-|  |  [GENERATOR PROMPT] <----(Calls)----> [Gemini Pro API]                 |  |
-|  |  (Persona: "Tech Architect")       (Synthesizes Answer)                |  |
-|  |           |                                                            |  |
-|  |           v                                                            |  |
-|  |      [FINAL ANSWER]                                                    |  |
+|  |                          [GENERATOR PROMPT]                            |  |
+|  |             "Answer based ONLY on this context..."                     |  |
+|  |                                    |                                   |  |
+|  |                                    v                                   |  |
+|  |                          [GEMINI 2.5 FLASH]                            |  |
+|  |                                    |                                   |  |
+|  |                                    v                                   |  |
+|  |                           [FINAL ANSWER]                               |  |
 |  +------------------------------------------------------------------------+  |
 |                                                                              |
 +------------------------------------------------------------------------------+

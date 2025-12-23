@@ -69,9 +69,9 @@ class QueryRequest(BaseModel):
 
 # --- 4. ENDPOINTS ---
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 def read_root():
-    return {"status": "Veritas AI Brain is Active"}
+    return {"status": "Veritas Brain Online"}
 
 @app.post("/ingest")
 async def ingest_url(request: IngestRequest):

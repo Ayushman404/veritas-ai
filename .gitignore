@@ -8,8 +8,7 @@ __pycache__/
 *.pyc
 venv/
 .pytest_cache/
-ai-engine/chroma_db/   <-- Don't upload the local brain database
-ai-engine/temp_pdfs/
+ai-engine/chroma_db/ 
 
 # Node Junk
 node_modules/

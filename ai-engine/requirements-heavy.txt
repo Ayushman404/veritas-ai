@@ -1,0 +1,32 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+# Core API
+fastapi
+uvicorn
+requests
+python-dotenv
+
+# Web Scraping & Parsing
+beautifulsoup4
+python-multipart
+pypdf             # Added for future PDF support
+
+# RAG Framework
+langchain
+langchain-community
+langchain-core
+langchain-huggingface
+langchain-google-genai
+
+# Vector Database
+chromadb
+
+# Embeddings & ML
+# We explicitly list torch to ensure the CPU version from the URL above is used
+torch
+torchvision
+sentence-transformers
+
+# Advanced RAG (Future-proofing for Phase 3)
+networkx          # For Knowledge Graphs
+rank_bm25         # For Hybrid Search (Best-in-class retrieval)
+tiktoken          # For accurate token counting

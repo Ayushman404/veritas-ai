@@ -7,10 +7,9 @@ import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
 import Inspector from './components/Inspector';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 function App() {
-  // --- STATE ---
   const [url, setUrl] = useState('');
   const [query, setQuery] = useState('');
   const [isTraining, setIsTraining] = useState(false);
@@ -19,17 +18,51 @@ function App() {
   const [evidence, setEvidence] = useState([]);
   const [statusMsg, setStatusMsg] = useState('');
 
-  // --- HANDLERS ---
-  const handleIngest = async () => {
+  // --- HANDLER 1: URL INGESTION (Refactored for Form Data) ---
+  const handleUrlIngest = async () => {
     if (!url) return;
     setIsTraining(true);
-    setStatusMsg("Vectorizing content...");
+    setStatusMsg("Crawling & Vectorizing...");
+
     try {
-      const res = await axios.post(`${API_URL}/ingest`, { url });
-      setStatusMsg(`Success: Ingested ${res.data.chunks_stored} chunks.`);
+      // Backend expects Form Data now, not JSON!
+      const formData = new FormData();
+      formData.append('url', url);
+
+      const res = await axios.post(`${API_URL}/ingest/url`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' } // Optional but good practice
+      });
+      
+      setStatusMsg(`Success: Read ${res.data.chunks_stored} chunks from URL.`);
       setUrl('');
     } catch (err) {
-      setStatusMsg("Error: Failed to ingest.");
+      console.error(err);
+      setStatusMsg("Error: Failed to process URL.");
+    } finally {
+      setIsTraining(false);
+    }
+  };
+
+  // --- HANDLER 2: PDF INGESTION (NEW) ---
+  const handlePdfIngest = async (files) => {
+    if (!files || files.length === 0) return;
+    setIsTraining(true);
+    setStatusMsg(`Uploading ${files.length} document(s)...`);
+
+    try {
+      const formData = new FormData();
+      for (let i = 0; i < files.length; i++) {
+        formData.append('files', files[i]);
+      }
+
+      // FIX: Do NOT set Content-Type header manually. 
+      // Axios detects FormData and sets it + the boundary automatically.
+      const res = await axios.post(`${API_URL}/ingest/pdf`, formData);
+
+      setStatusMsg(` Success: Extracted ${res.data.chunks_stored} chunks from PDF(s).`);
+    } catch (err) {
+      console.error(err);
+      setStatusMsg(" Error: Failed to process PDF.");
     } finally {
       setIsTraining(false);
     }
@@ -40,11 +73,9 @@ function App() {
     const currentQ = query;
     setQuery('');
     setIsSearching(true);
-
-    // Optimistic Update
     setChatHistory(prev => [...prev, { role: 'user', content: currentQ }]);
 
-    // Prepare History format for Backend
+    // Format history for backend
     const historyPairs = [];
     for (let i = 0; i < chatHistory.length; i += 2) {
       if (chatHistory[i+1]) {
@@ -61,20 +92,40 @@ function App() {
       setChatHistory(prev => [...prev, { role: 'ai', content: res.data.answer }]);
       setEvidence(res.data.evidence);
     } catch (err) {
-      setChatHistory(prev => [...prev, { role: 'ai', content: "Error: Could not retrieve answer." }]);
+      setChatHistory(prev => [...prev, { role: 'ai', content: "⚠️ Error: The Agent is unresponsive." }]);
     } finally {
       setIsSearching(false);
     }
   };
 
-  // --- RENDER ---
+  // --- HANDLER 3: RESET BRAIN ---
+  const handleReset = async () => {
+    if (!window.confirm("Are you sure? This will delete all ingested knowledge.")) return;
+    
+    setIsTraining(true);
+    setStatusMsg("Purging memory...");
+    
+    try {
+      await axios.delete(`${API_URL}/reset`);
+      setStatusMsg("✅ System Reset. Brain is empty.");
+      setChatHistory([]); // Also clear the chat UI
+      setEvidence([]);
+    } catch (err) {
+      console.error(err);
+      setStatusMsg("❌ Error: Failed to reset.");
+    } finally {
+      setIsTraining(false);
+    }
+  };
+
   return (
     <div className="app-layout">
-      
       <Sidebar 
         url={url} 
         setUrl={setUrl} 
-        handleIngest={handleIngest} 
+        handleUrlIngest={handleUrlIngest} 
+        handlePdfIngest={handlePdfIngest}
+        handleReset={handleReset}
         isTraining={isTraining} 
         statusMsg={statusMsg} 
       />
@@ -87,10 +138,7 @@ function App() {
         isSearching={isSearching} 
       />
       
-      <Inspector 
-        evidence={evidence} 
-      />
-
+      <Inspector evidence={evidence} />
     </div>
   );
 }
